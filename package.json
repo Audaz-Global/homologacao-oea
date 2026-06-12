@@ -6,8 +6,9 @@
     "node": ">=20.19.0"
   },
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "next dev",
-    "build": "DATABASE_URL=postgresql://dummy:dummy@localhost/dummy prisma generate && next build",
+    "build": "next build",
     "start": "npx prisma db push --accept-data-loss && next start",
     "lint": "eslint"
   },
