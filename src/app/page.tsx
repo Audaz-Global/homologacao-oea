@@ -1,65 +1,264 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from 'react';
 
 export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+  const [formData, setFormData] = useState({
+    razaoSocial: '',
+    cnpj: '',
+    nomeResponsavel: '',
+    cargo: '',
+    email: '',
+    telefone: '',
+    q1: '',
+    q2: '',
+    q3: '',
+    q4: '',
+    q5: '',
+    q6: '',
+    termo: false,
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        setSuccess(true);
+      } else {
+        alert('Ocorreu um erro ao enviar os dados.');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Erro de rede ao enviar os dados.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (success) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 bg-gradient-to-br from-slate-900 to-indigo-950 p-8">
+        <div className="bg-slate-800/70 backdrop-blur-xl border border-white/10 p-12 rounded-3xl text-center max-w-lg shadow-2xl">
+          <div className="text-5xl mb-4">✅</div>
+          <h1 className="text-2xl font-bold text-white mb-4">Dados Enviados com Sucesso!</h1>
+          <p className="text-slate-300">
+            A equipe de Qualidade da Audaz Global analisará suas informações e os documentos enviados. 
+            Agradecemos a sua parceria e compromisso com o Programa OEA.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-900 bg-gradient-to-br from-slate-900 to-indigo-950 text-slate-50 p-4 sm:p-8 flex justify-center items-center font-sans">
+      <div className="w-full max-w-3xl bg-slate-800/70 backdrop-blur-xl border border-white/10 p-8 sm:p-12 rounded-3xl shadow-2xl">
+        
+        <div className="text-center mb-10">
+          <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
+            Audaz Global - Homologação de Transportadoras
+          </h1>
+          <p className="text-slate-400">
+            Formulário de revalidação de requisitos da Portaria COANA 188/2026 para manutenção do Trânsito Aduaneiro Simplificado (Programa OEA).
+          </p>
         </div>
-      </main>
+
+        <form onSubmit={handleSubmit} className="space-y-8">
+          
+          {/* Seção 1: Dados de Identificação */}
+          <div>
+            <h2 className="text-xl font-semibold text-slate-200 border-b-2 border-blue-600 pb-2 mb-6">1. Dados de Identificação</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-300">Nome da Transportadora (Razão Social) *</label>
+                <input required name="razaoSocial" value={formData.razaoSocial} onChange={handleInputChange} className="w-full p-3 bg-slate-900/60 border border-white/10 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-white transition-all" />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-300">CNPJ *</label>
+                <input required name="cnpj" value={formData.cnpj} onChange={handleInputChange} className="w-full p-3 bg-slate-900/60 border border-white/10 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-white transition-all" placeholder="00.000.000/0000-00" />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-300">Nome do Responsável pelo Preenchimento *</label>
+                <input required name="nomeResponsavel" value={formData.nomeResponsavel} onChange={handleInputChange} className="w-full p-3 bg-slate-900/60 border border-white/10 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-white transition-all" />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-300">Cargo do Responsável *</label>
+                <input required name="cargo" value={formData.cargo} onChange={handleInputChange} className="w-full p-3 bg-slate-900/60 border border-white/10 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-white transition-all" />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-300">E-mail de Contato *</label>
+                <input type="email" required name="email" value={formData.email} onChange={handleInputChange} className="w-full p-3 bg-slate-900/60 border border-white/10 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-white transition-all" />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-300">Telefone/WhatsApp *</label>
+                <input required name="telefone" value={formData.telefone} onChange={handleInputChange} className="w-full p-3 bg-slate-900/60 border border-white/10 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-white transition-all" />
+              </div>
+            </div>
+          </div>
+
+          {/* Seção 2: Requisitos da Portaria COANA 188/2026 */}
+          <div>
+            <h2 className="text-xl font-semibold text-slate-200 border-b-2 border-blue-600 pb-2 mb-6 mt-8">2. Requisitos da Portaria COANA 188/2026</h2>
+
+            {/* Q1 */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-slate-300 mb-3 leading-relaxed">
+                1. A sua transportadora possui contrato com empresa de monitoramento/rastreamento de veículos que já esteja integrada à <strong>API-Argos</strong> da Receita Federal? *
+              </label>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input type="radio" name="q1" value="sim" onChange={handleInputChange} required className="w-5 h-5 accent-blue-600 bg-slate-700 border-slate-500 cursor-pointer" />
+                  <span className="text-slate-200 group-hover:text-white">Sim</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input type="radio" name="q1" value="nao" onChange={handleInputChange} className="w-5 h-5 accent-blue-600 bg-slate-700 border-slate-500 cursor-pointer" />
+                  <span className="text-slate-200 group-hover:text-white">Não</span>
+                </label>
+              </div>
+              {formData.q1 === 'sim' && (
+                <div className="mt-4 p-4 bg-blue-900/20 border border-blue-500/50 rounded-lg animate-in fade-in slide-in-from-top-2 duration-300">
+                  <p className="text-sm text-blue-200 mb-2">Por favor, anexe a cópia do contrato ou a declaração da empresa de rastreamento atestando a integração (Obrigatório).</p>
+                  <input type="file" required className="text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 transition-colors cursor-pointer" />
+                </div>
+              )}
+            </div>
+
+            {/* Q2 */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-slate-300 mb-3 leading-relaxed">
+                2. A sua transportadora realizou a configuração sistêmica para demonstrar que a RFB (Receita Federal do Brasil) está habilitada como <strong>destinatária</strong> dos dados de rastreamento no sistema? *
+              </label>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input type="radio" name="q2" value="sim" onChange={handleInputChange} required className="w-5 h-5 accent-blue-600 bg-slate-700 border-slate-500 cursor-pointer" />
+                  <span className="text-slate-200 group-hover:text-white">Sim</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input type="radio" name="q2" value="nao" onChange={handleInputChange} className="w-5 h-5 accent-blue-600 bg-slate-700 border-slate-500 cursor-pointer" />
+                  <span className="text-slate-200 group-hover:text-white">Não</span>
+                </label>
+              </div>
+              {formData.q2 === 'sim' && (
+                <div className="mt-4 p-4 bg-blue-900/20 border border-blue-500/50 rounded-lg animate-in fade-in slide-in-from-top-2 duration-300">
+                  <p className="text-sm text-blue-200 mb-2">Por favor, anexe um print de tela do sistema ou declaração comprovando a habilitação (Obrigatório).</p>
+                  <input type="file" required className="text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 transition-colors cursor-pointer" />
+                </div>
+              )}
+            </div>
+
+            {/* Q3 */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-slate-300 mb-3 leading-relaxed">
+                3. O sistema de monitoramento de veículos e cargas utilizado pela sua empresa contempla o <strong>monitoramento das portas</strong> das unidades de carga (baús)? *
+              </label>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input type="radio" name="q3" value="sim" onChange={handleInputChange} required className="w-5 h-5 accent-blue-600 bg-slate-700 border-slate-500 cursor-pointer" />
+                  <span className="text-slate-200 group-hover:text-white">Sim</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input type="radio" name="q3" value="nao" onChange={handleInputChange} className="w-5 h-5 accent-blue-600 bg-slate-700 border-slate-500 cursor-pointer" />
+                  <span className="text-slate-200 group-hover:text-white">Não</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Q4 */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-slate-300 mb-3 leading-relaxed">
+                4. A frota de veículos utilizada nas operações de trânsito simplificado possui carrocerias exclusivamente fechadas, do <strong>tipo Baú</strong>? *(O uso de Sider está vedado como regra)*
+              </label>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input type="radio" name="q4" value="sim" onChange={handleInputChange} required className="w-5 h-5 accent-blue-600 bg-slate-700 border-slate-500 cursor-pointer" />
+                  <span className="text-slate-200 group-hover:text-white">Sim</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input type="radio" name="q4" value="nao" onChange={handleInputChange} className="w-5 h-5 accent-blue-600 bg-slate-700 border-slate-500 cursor-pointer" />
+                  <span className="text-slate-200 group-hover:text-white">Não</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Q5 */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-slate-300 mb-3 leading-relaxed">
+                5. A sua transportadora possui capacidade e procedimento definido para gerar e fornecer à Audaz as coordenadas geográficas de cada rota em formato de <strong>arquivo KML</strong>? *
+              </label>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input type="radio" name="q5" value="sim" onChange={handleInputChange} required className="w-5 h-5 accent-blue-600 bg-slate-700 border-slate-500 cursor-pointer" />
+                  <span className="text-slate-200 group-hover:text-white">Sim</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input type="radio" name="q5" value="nao" onChange={handleInputChange} className="w-5 h-5 accent-blue-600 bg-slate-700 border-slate-500 cursor-pointer" />
+                  <span className="text-slate-200 group-hover:text-white">Não</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Q6 */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-slate-300 mb-3 leading-relaxed">
+                6. A transportadora possui procedimento formal para comunicação imediata à unidade aduaneira de destino <strong>antes</strong> da chegada do veículo, em caso de: abertura de portas no percurso, dano no lacre ou interrupção de envio do sinal de rastreamento? *
+              </label>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input type="radio" name="q6" value="sim" onChange={handleInputChange} required className="w-5 h-5 accent-blue-600 bg-slate-700 border-slate-500 cursor-pointer" />
+                  <span className="text-slate-200 group-hover:text-white">Sim</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input type="radio" name="q6" value="nao" onChange={handleInputChange} className="w-5 h-5 accent-blue-600 bg-slate-700 border-slate-500 cursor-pointer" />
+                  <span className="text-slate-200 group-hover:text-white">Não</span>
+                </label>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Termo e Submit */}
+          <div className="mt-10 p-6 bg-slate-900/50 rounded-xl border border-white/5 flex gap-4 items-start">
+            <input type="checkbox" id="termo" name="termo" checked={formData.termo} onChange={handleInputChange} required className="mt-1 w-5 h-5 accent-blue-600 cursor-pointer shrink-0" />
+            <label htmlFor="termo" className="text-sm text-slate-300 cursor-pointer leading-relaxed">
+              Declaro sob as penas da lei que as informações prestadas neste formulário e os documentos anexados são verdadeiros. Tenho ciência dos requisitos da Portaria COANA 188/2026 e assumo a responsabilidade pelas devidas atualizações sistêmicas e físicas em nossa frota, essenciais para a manutenção da parceria com a Audaz Global.
+            </label>
+          </div>
+
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="w-full py-4 mt-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-blue-900/20 transform transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Enviando Dados...' : 'Enviar Homologação'}
+          </button>
+
+        </form>
+      </div>
     </div>
   );
 }
