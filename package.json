@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "DATABASE_URL=postgresql://dummy:dummy@localhost/dummy prisma generate && next build",
-    "start": "next start",
+    "start": "next start -H 0.0.0.0",
     "lint": "eslint"
   },
   "dependencies": {
