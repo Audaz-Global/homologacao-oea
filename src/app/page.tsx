@@ -70,12 +70,13 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 bg-gradient-to-br from-slate-900 to-indigo-950 text-slate-50 p-4 sm:p-8 flex justify-center items-center font-sans">
+    <div className="min-h-screen bg-slate-900 bg-gradient-to-br from-slate-900 to-indigo-950 text-slate-50 p-4 sm:p-8 flex flex-col justify-center items-center font-sans">
       <div className="w-full max-w-3xl bg-slate-800/70 backdrop-blur-xl border border-white/10 p-8 sm:p-12 rounded-3xl shadow-2xl">
         
         <div className="text-center mb-10">
+          <img src="/logo.png" alt="Audaz Global Logo" className="h-24 mx-auto mb-8 drop-shadow-2xl object-contain" />
           <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
-            Audaz Global - Homologação de Transportadoras
+            Homologação de Transportadoras
           </h1>
           <p className="text-slate-400">
             Formulário de revalidação de requisitos da Portaria COANA 188/2026 para manutenção do Trânsito Aduaneiro Simplificado (Programa OEA).
@@ -259,6 +260,14 @@ export default function Home() {
 
         </form>
       </div>
+
+      {/* Footer com informações da empresa */}
+      <footer className="mt-12 text-center text-slate-400 text-sm w-full max-w-3xl">
+        <p className="font-semibold text-slate-300">© {new Date().getFullYear()} Audaz Global Logistica Ltda.</p>
+        <p className="mt-2">Av. Cassiano Ricardo, 156/157, 15º andar - Ed. The One Office Tower</p>
+        <p>Jardim Aquarius, São José dos Campos - SP | CEP: 12246-870</p>
+        <p className="mt-2">📞 +55 12 3307-1704 | ✉️ oea@audazglobal.com</p>
+      </footer>
     </div>
   );
 }
