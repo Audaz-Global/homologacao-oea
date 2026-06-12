@@ -268,7 +268,7 @@ export default function Home() {
       {/* Footer com informações da empresa */}
       <footer className="mt-12 text-center text-slate-400 text-sm w-full max-w-3xl">
         <p className="font-semibold text-slate-300">© {new Date().getFullYear()} Audaz Global Logistica Ltda.</p>
-        <p className="mt-2">Av. Cassiano Ricardo, 156/157, 15º andar - Ed. The One Office Tower</p>
+        <p className="mt-2">Av. Cassiano Ricardo, 152/156/157, 15º andar - Ed. The One Office Tower</p>
         <p>Jardim Aquarius, São José dos Campos - SP | CEP: 12246-870</p>
         <p className="mt-2">📞 +55 12 3307-1704 | ✉️ oea@audazglobal.com</p>
       </footer>
