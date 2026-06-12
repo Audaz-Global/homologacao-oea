@@ -30,15 +30,29 @@ export default function Home() {
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      const form = new FormData();
+      Object.entries(formData).forEach(([key, value]) => {
+        form.append(key, value.toString());
+      });
+
+      // Get files from the form element
+      const formElement = e.target as HTMLFormElement;
+      const fileInputs = formElement.querySelectorAll('input[type="file"]');
+      
+      fileInputs.forEach((input: any, index: number) => {
+        if (input.files && input.files.length > 0) {
+          form.append(`evidencia${index + 1}`, input.files[0]);
+        }
+      });
+
       const response = await fetch('/api/submit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: form,
       });
 
       if (response.ok) {

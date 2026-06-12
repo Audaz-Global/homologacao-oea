@@ -16,13 +16,18 @@ model Transportadora {
   email           String
   telefone        String
   
-  q1_apiArgos     String
-  q2_rfbDestino   String
+  q1_apiArgos      String
+  evidenciaQ1      String?  // Base64 do PDF/Imagem
+  q2_rfbDestino    String
+  evidenciaQ2      String?  // Base64 do PDF/Imagem
   q3_monitorPortas String
-  q4_baus         String
-  q5_kml          String
-  q6_violacao     String
+  q4_baus          String
+  q5_kml           String
+  q6_violacao      String
 
-  termoAceito     Boolean
-  createdAt       DateTime @default(now())
+  pontuacao        Int      @default(0)
+  statusHomologacao String   @default("Pendente")
+
+  termoAceito      Boolean
+  createdAt        DateTime @default(now())
 }
