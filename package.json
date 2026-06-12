@@ -7,10 +7,9 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint",
-    "postinstall": "DATABASE_URL=\"postgresql://dummy:dummy@localhost/dummy\" prisma generate"
+    "lint": "eslint"
   },
   "dependencies": {
     "@prisma/client": "^7.8.0",
