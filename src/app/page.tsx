@@ -74,7 +74,11 @@ export default function Home() {
       <div className="w-full max-w-3xl bg-slate-800/70 backdrop-blur-xl border border-white/10 p-8 sm:p-12 rounded-3xl shadow-2xl">
         
         <div className="text-center mb-10">
-          <img src="/logo.png" alt="Audaz Global Logo" className="h-24 mx-auto mb-8 drop-shadow-2xl object-contain" />
+          <div className="flex justify-center items-center gap-8 mb-8">
+            <img src="/logo.png" alt="Audaz Global" className="h-24 drop-shadow-2xl object-contain" />
+            <div className="w-px h-16 bg-white/20"></div>
+            <img src="/logo-oea.png" alt="Programa OEA" className="h-20 drop-shadow-2xl object-contain" />
+          </div>
           <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
             Homologação de Transportadoras
           </h1>
