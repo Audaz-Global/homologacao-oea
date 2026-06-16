@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import nodemailer from 'nodemailer';
 
 export async function POST(request: Request) {
   try {
@@ -63,6 +64,63 @@ export async function POST(request: Request) {
         statusHomologacao: 'Pendente'
       },
     });
+
+    // Enviar notificação por e-mail
+    try {
+      if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+        const transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST,
+          port: parseInt(process.env.SMTP_PORT || '587'),
+          secure: process.env.SMTP_SECURE === 'true', // true para 465, false para outras
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+          },
+        });
+
+        const mailOptions = {
+          from: `"Homologação OEA" <${process.env.SMTP_USER}>`,
+          to: [
+            'daniel@audazglobal.com',
+            'cs3@audazglobal.com',
+            'cs13@audazglobal.com',
+            'cs16@audazglobal.com',
+            'gabriella.ext@audazglobal.com',
+          ].join(', '),
+          subject: `Nova Homologação OEA Recebida: ${razaoSocial}`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+              <h2 style="color: #0f172a;">Nova transportadora respondeu ao questionário</h2>
+              <p>Uma nova transportadora preencheu o formulário de Homologação OEA.</p>
+              
+              <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin: 20px 0;">
+                <p style="margin: 5px 0;"><strong>Razão Social:</strong> ${razaoSocial}</p>
+                <p style="margin: 5px 0;"><strong>CNPJ:</strong> ${cnpj}</p>
+                <p style="margin: 5px 0;"><strong>Responsável:</strong> ${nomeResponsavel} (${cargo})</p>
+                <p style="margin: 5px 0;"><strong>E-mail:</strong> ${email}</p>
+                <p style="margin: 5px 0;"><strong>Telefone:</strong> ${telefone}</p>
+              </div>
+
+              <h3 style="color: #0f172a;">Pontuação Automática</h3>
+              <div style="display: inline-block; padding: 10px 20px; background-color: ${pontuacao >= 50 ? '#dcfce7' : pontuacao >= 30 ? '#fef3c7' : '#fee2e2'}; color: ${pontuacao >= 50 ? '#166534' : pontuacao >= 30 ? '#92400e' : '#991b1b'}; border-radius: 99px; font-weight: bold; font-size: 18px;">
+                ${pontuacao} pontos
+              </div>
+              <p style="margin-top: 20px;">
+                Acesse o painel para verificar as evidências enviadas.
+              </p>
+            </div>
+          `,
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log('E-mail de notificação enviado com sucesso para:', mailOptions.to);
+      } else {
+        console.warn('Variáveis de ambiente SMTP não configuradas. E-mail não enviado.');
+      }
+    } catch (emailError) {
+      console.error('Erro ao enviar e-mail de notificação:', emailError);
+      // Não falhamos a requisição se o e-mail der erro
+    }
 
     return NextResponse.json({ success: true, transportadora: novaTransportadora });
   } catch (error) {
