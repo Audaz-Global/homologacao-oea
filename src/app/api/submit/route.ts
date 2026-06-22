@@ -96,6 +96,7 @@ export async function POST(request: Request) {
             'cs13@audazglobal.com',
             'cs16@audazglobal.com',
             'gabriella.ext@audazglobal.com',
+            'sales@audazglobal.com',
           ].join(', '),
           subject: `Nova Homologação OEA Recebida: ${razaoSocial}`,
           attachments,
