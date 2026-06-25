@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import nodemailer from 'nodemailer';
+import { exec } from 'child_process';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
 export async function POST(request: Request) {
   try {
@@ -37,8 +38,10 @@ export async function POST(request: Request) {
       const buffer = Buffer.from(await evidencia1File.arrayBuffer());
       evidenciaQ1 = `data:${evidencia1File.type};base64,${buffer.toString('base64')}`;
       attachments.push({
-        filename: evidencia1File.name || 'evidencia_api_argos.pdf',
-        content: buffer,
+        "@odata.type": "#microsoft.graph.fileAttachment",
+        name: evidencia1File.name || 'evidencia_api_argos.pdf',
+        contentType: evidencia1File.type || 'application/pdf',
+        contentBytes: buffer.toString('base64')
       });
     }
 
@@ -48,10 +51,67 @@ export async function POST(request: Request) {
       const buffer = Buffer.from(await evidencia2File.arrayBuffer());
       evidenciaQ2 = `data:${evidencia2File.type};base64,${buffer.toString('base64')}`;
       attachments.push({
-        filename: evidencia2File.name || 'evidencia_rfb_destinatario.pdf',
-        content: buffer,
+        "@odata.type": "#microsoft.graph.fileAttachment",
+        name: evidencia2File.name || 'evidencia_rfb_destinatario.pdf',
+        contentType: evidencia2File.type || 'application/pdf',
+        contentBytes: buffer.toString('base64')
       });
     }
+
+    // --- GERAR PDF COM OS DADOS DO FORMULÁRIO ---
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    
+    const page = pdfDoc.addPage();
+    const { height } = page.getSize();
+    let yPos = height - 50;
+
+    const drawLine = (text: string, isBold = false, size = 12) => {
+      // Remover acentos para garantir que pdf-lib standard fonts suporte o texto no formato WinAnsi
+      const safeText = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      page.drawText(safeText, {
+        x: 50,
+        y: yPos,
+        size: size,
+        font: isBold ? fontBold : font,
+        color: rgb(0, 0, 0),
+      });
+      yPos -= (size + 10);
+    };
+
+    drawLine('Resumo da Homologacao OEA - Transportadora', true, 18);
+    yPos -= 10;
+    drawLine(`Razao Social: ${razaoSocial}`);
+    drawLine(`CNPJ: ${cnpj}`);
+    drawLine(`Responsavel: ${nomeResponsavel} (${cargo})`);
+    drawLine(`E-mail: ${email}`);
+    drawLine(`Telefone: ${telefone}`);
+    
+    yPos -= 20;
+    drawLine('Questionario (COANA 188):', true, 14);
+    yPos -= 10;
+    drawLine(`1. API-Argos: ${q1.toUpperCase()}`);
+    drawLine(`2. RFB destinataria: ${q2.toUpperCase()}`);
+    drawLine(`3. Monitoramento portas: ${q3.toUpperCase()}`);
+    drawLine(`4. Baus: ${q4.toUpperCase()}`);
+    drawLine(`5. KML: ${q5.toUpperCase()}`);
+    drawLine(`6. Violacao aduana: ${q6.toUpperCase()}`);
+    
+    yPos -= 20;
+    drawLine(`Pontuacao: ${pontuacao} pontos`, true, 14);
+
+    const pdfBytes = await pdfDoc.save();
+    const pdfBase64 = Buffer.from(pdfBytes).toString('base64');
+
+    attachments.push({
+      "@odata.type": "#microsoft.graph.fileAttachment",
+      name: `Resumo_Homologacao_${cnpj.replace(/[^0-9]/g, '')}.pdf`,
+      contentType: "application/pdf",
+      contentBytes: pdfBase64
+    });
+    // --- FIM DA GERAÇÃO DO PDF ---
+
 
     const novaTransportadora = await prisma.transportadora.create({
       data: {
@@ -75,99 +135,139 @@ export async function POST(request: Request) {
       },
     });
 
-    // Enviar notificação por e-mail
+    // Atualiza o arquivo markdown resumo_transportadoras.md na raiz do workspace
+    exec('node ../update-resumo.js', (err) => {
+      if (err) {
+        console.error('Erro ao atualizar o arquivo de resumo das transportadoras:', err);
+      } else {
+        console.log('Arquivo resumo_transportadoras.md atualizado com sucesso.');
+      }
+    });
+
+    // Enviar notificação por e-mail via MS Graph API
     try {
-      if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-        const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
-          port: parseInt(process.env.SMTP_PORT || '587'),
-          secure: process.env.SMTP_SECURE === 'true', // true para 465, false para outras
-          auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
+      const tenantId = process.env.MS_GRAPH_TENANT_ID;
+      const clientId = process.env.MS_GRAPH_CLIENT_ID;
+      const clientSecret = process.env.MS_GRAPH_CLIENT_SECRET;
+      const senderEmail = process.env.MS_GRAPH_SENDER;
+
+      if (tenantId && clientId && clientSecret && senderEmail) {
+        // 1. Obter Token de Acesso
+        const tokenResponse = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
           },
+          body: new URLSearchParams({
+            client_id: clientId,
+            scope: 'https://graph.microsoft.com/.default',
+            client_secret: clientSecret,
+            grant_type: 'client_credentials'
+          })
         });
 
-        const mailOptions = {
-          from: `"Homologação OEA" <${process.env.SMTP_USER}>`,
-          to: [
-            'daniel@audazglobal.com',
-            'cs3@audazglobal.com',
-            'cs13@audazglobal.com',
-            'cs16@audazglobal.com',
-            'gabriella.ext@audazglobal.com',
-            'sales@audazglobal.com',
-          ].join(', '),
-          subject: `Nova Homologação OEA Recebida: ${razaoSocial}`,
-          attachments,
-          html: `
-            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-              <h2 style="color: #0f172a;">Nova transportadora respondeu ao questionário</h2>
-              <p>Uma nova transportadora preencheu o formulário de Homologação OEA.</p>
-              
-              <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin: 20px 0;">
-                <p style="margin: 5px 0;"><strong>Razão Social:</strong> ${razaoSocial}</p>
-                <p style="margin: 5px 0;"><strong>CNPJ:</strong> ${cnpj}</p>
-                <p style="margin: 5px 0;"><strong>Responsável:</strong> ${nomeResponsavel} (${cargo})</p>
-                <p style="margin: 5px 0;"><strong>E-mail:</strong> ${email}</p>
-                <p style="margin: 5px 0;"><strong>Telefone:</strong> ${telefone}</p>
-              </div>
+        if (!tokenResponse.ok) {
+          throw new Error(`Falha ao obter token do MS Graph: ${await tokenResponse.text()}`);
+        }
 
-              <h3 style="color: #0f172a;">Respostas do Questionário</h3>
-              <table style="width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 14px;">
-                <thead>
-                  <tr style="background-color: #f1f5f9; text-align: left;">
-                    <th style="padding: 10px; border: 1px solid #e2e8f0;">Requisito</th>
-                    <th style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; width: 80px;">Resposta</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td style="padding: 10px; border: 1px solid #e2e8f0;">1. Integração com API-Argos da RFB</td>
-                    <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: ${q1 === 'sim' ? '#166534' : '#991b1b'};">${q1.toUpperCase()}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 10px; border: 1px solid #e2e8f0;">2. RFB como destinatária dos dados de rastreamento</td>
-                    <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: ${q2 === 'sim' ? '#166534' : '#991b1b'};">${q2.toUpperCase()}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 10px; border: 1px solid #e2e8f0;">3. Monitoramento de portas das unidades de carga</td>
-                    <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: ${q3 === 'sim' ? '#166534' : '#991b1b'};">${q3.toUpperCase()}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 10px; border: 1px solid #e2e8f0;">4. Frota com carrocerias fechadas do tipo Baú</td>
-                    <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: ${q4 === 'sim' ? '#166534' : '#991b1b'};">${q4.toUpperCase()}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 10px; border: 1px solid #e2e8f0;">5. Capacidade de gerar/fornecer arquivos de rota KML</td>
-                    <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: ${q5 === 'sim' ? '#166534' : '#991b1b'};">${q5.toUpperCase()}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 10px; border: 1px solid #e2e8f0;">6. Procedimento formal de comunicação de violações à aduana</td>
-                    <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: ${q6 === 'sim' ? '#166534' : '#991b1b'};">${q6.toUpperCase()}</td>
-                  </tr>
-                </tbody>
-              </table>
+        const tokenData = await tokenResponse.json();
+        const accessToken = tokenData.access_token;
 
-              <h3 style="color: #0f172a;">Pontuação Automática</h3>
-              <div style="display: inline-block; padding: 10px 20px; background-color: ${pontuacao >= 50 ? '#dcfce7' : pontuacao >= 30 ? '#fef3c7' : '#fee2e2'}; color: ${pontuacao >= 50 ? '#166534' : pontuacao >= 30 ? '#92400e' : '#991b1b'}; border-radius: 99px; font-weight: bold; font-size: 18px; margin-bottom: 20px;">
-                ${pontuacao} pontos
-              </div>
-
-              <p style="margin-top: 10px;">
-                Os arquivos de evidências enviados foram anexados diretamente a este e-mail para preservação e backup.
-              </p>
-              <p>
-                Acesse o painel administrativo online para gerenciar o status da homologação.
-              </p>
+        // 2. Enviar E-mail
+        const htmlContent = `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+            <h2 style="color: #0f172a;">Nova transportadora respondeu ao questionário</h2>
+            <p>Uma nova transportadora preencheu o formulário de Homologação OEA.</p>
+            
+            <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin: 20px 0;">
+              <p style="margin: 5px 0;"><strong>Razão Social:</strong> ${razaoSocial}</p>
+              <p style="margin: 5px 0;"><strong>CNPJ:</strong> ${cnpj}</p>
+              <p style="margin: 5px 0;"><strong>Responsável:</strong> ${nomeResponsavel} (${cargo})</p>
+              <p style="margin: 5px 0;"><strong>E-mail:</strong> ${email}</p>
+              <p style="margin: 5px 0;"><strong>Telefone:</strong> ${telefone}</p>
             </div>
-          `,
-        };
 
-        await transporter.sendMail(mailOptions);
-        console.log('E-mail de notificação enviado com sucesso para:', mailOptions.to);
+            <h3 style="color: #0f172a;">Respostas do Questionário</h3>
+            <table style="width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 14px;">
+              <thead>
+                <tr style="background-color: #f1f5f9; text-align: left;">
+                  <th style="padding: 10px; border: 1px solid #e2e8f0;">Requisito</th>
+                  <th style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; width: 80px;">Resposta</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style="padding: 10px; border: 1px solid #e2e8f0;">1. Integração com API-Argos da RFB</td>
+                  <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: ${q1 === 'sim' ? '#166534' : '#991b1b'};">${q1.toUpperCase()}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px; border: 1px solid #e2e8f0;">2. RFB como destinatária dos dados de rastreamento</td>
+                  <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: ${q2 === 'sim' ? '#166534' : '#991b1b'};">${q2.toUpperCase()}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px; border: 1px solid #e2e8f0;">3. Monitoramento de portas das unidades de carga</td>
+                  <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: ${q3 === 'sim' ? '#166534' : '#991b1b'};">${q3.toUpperCase()}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px; border: 1px solid #e2e8f0;">4. Frota com carrocerias fechadas do tipo Baú</td>
+                  <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: ${q4 === 'sim' ? '#166534' : '#991b1b'};">${q4.toUpperCase()}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px; border: 1px solid #e2e8f0;">5. Capacidade de gerar/fornecer arquivos de rota KML</td>
+                  <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: ${q5 === 'sim' ? '#166534' : '#991b1b'};">${q5.toUpperCase()}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px; border: 1px solid #e2e8f0;">6. Procedimento formal de comunicação de violações à aduana</td>
+                  <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: ${q6 === 'sim' ? '#166534' : '#991b1b'};">${q6.toUpperCase()}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h3 style="color: #0f172a;">Pontuação Automática</h3>
+            <div style="display: inline-block; padding: 10px 20px; background-color: ${pontuacao >= 50 ? '#dcfce7' : pontuacao >= 30 ? '#fef3c7' : '#fee2e2'}; color: ${pontuacao >= 50 ? '#166534' : pontuacao >= 30 ? '#92400e' : '#991b1b'}; border-radius: 99px; font-weight: bold; font-size: 18px; margin-bottom: 20px;">
+              ${pontuacao} pontos
+            </div>
+
+            <p style="margin-top: 10px;">
+              Os arquivos de evidências enviados foram anexados diretamente a este e-mail para preservação e backup.
+            </p>
+            <p>
+              Acesse o painel administrativo online para gerenciar o status da homologação.
+            </p>
+          </div>
+        `;
+
+        const toEmails = [
+          'daniel@audazglobal.com',
+          'sales@audazglobal.com',
+        ];
+
+        const sendMailResponse = await fetch(`https://graph.microsoft.com/v1.0/users/${senderEmail}/sendMail`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: {
+              subject: `Nova Homologação OEA Recebida: ${razaoSocial}`,
+              body: {
+                contentType: 'HTML',
+                content: htmlContent
+              },
+              toRecipients: toEmails.map(email => ({ emailAddress: { address: email } })),
+              attachments: attachments
+            }
+          })
+        });
+
+        if (!sendMailResponse.ok) {
+          throw new Error(`Falha ao enviar e-mail: ${await sendMailResponse.text()}`);
+        }
+
+        console.log('E-mail de notificação enviado com sucesso (MS Graph API).');
       } else {
-        console.warn('Variáveis de ambiente SMTP não configuradas. E-mail não enviado.');
+        console.warn('Variáveis de ambiente do MS Graph não configuradas. E-mail não enviado.');
       }
     } catch (emailError) {
       console.error('Erro ao enviar e-mail de notificação:', emailError);
