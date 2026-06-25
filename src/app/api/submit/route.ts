@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { exec } from 'child_process';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import path from 'path';
+import fs from 'fs';
 
 export async function POST(request: Request) {
   try {
@@ -58,55 +60,310 @@ export async function POST(request: Request) {
       });
     }
 
-    // --- GERAR PDF COM OS DADOS DO FORMULÁRIO ---
+    // --- GERAR PDF COM OS DADOS DO FORMULÁRIO (ESTILO TELA PRINCIPAL) ---
+    
     const pdfDoc = await PDFDocument.create();
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     
-    const page = pdfDoc.addPage();
-    const { height } = page.getSize();
-    let yPos = height - 50;
-
-    const drawLine = (text: string, isBold = false, size = 12) => {
-      // Remover acentos para garantir que pdf-lib standard fonts suporte o texto no formato WinAnsi
-      const safeText = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      page.drawText(safeText, {
-        x: 50,
-        y: yPos,
-        size: size,
-        font: isBold ? fontBold : font,
-        color: rgb(0, 0, 0),
-      });
-      yPos -= (size + 10);
+    const safe = (text: string) => {
+      return (text || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\x00-\x7F]/g, "");
     };
 
-    drawLine('Resumo da Homologacao OEA - Transportadora', true, 18);
-    yPos -= 10;
-    drawLine(`Razao Social: ${razaoSocial}`);
-    drawLine(`CNPJ: ${cnpj}`);
-    drawLine(`Responsavel: ${nomeResponsavel} (${cargo})`);
-    drawLine(`E-mail: ${email}`);
-    drawLine(`Telefone: ${telefone}`);
+    const formatDate = (d: Date) => {
+      try {
+        return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      } catch (e) {
+        return '';
+      }
+    };
+
+    const drawInputBox = (page: any, label: string, val: string, x: number, y: number, width: number, height: number) => {
+      page.drawText(label, {
+        x, y: y + height + 4,
+        size: 8,
+        font: fontBold,
+        color: rgb(148/255, 163/255, 184/255)
+      });
+      page.drawRectangle({
+        x, y, width, height,
+        color: rgb(15/255, 23/255, 42/255),
+        borderColor: rgb(51/255, 65/255, 85/255),
+        borderWidth: 1
+      });
+      page.drawText(val, {
+        x: x + 8, y: y + 10,
+        size: 9,
+        font,
+        color: rgb(255/255, 255/255, 255/255)
+      });
+    };
+
+    const drawTextWrapped = (page: any, text: string, x: number, y: number, width: number, size: number, color: any) => {
+      const words = text.split(' ');
+      let line = '';
+      let currentY = y;
+      for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + ' ';
+        const testWidth = font.widthOfTextAtSize(testLine, size);
+        if (testWidth > width && n > 0) {
+          page.drawText(line, { x, y: currentY, size, font, color });
+          line = words[n] + ' ';
+          currentY -= (size + 4);
+        } else {
+          line = testLine;
+        }
+      }
+      page.drawText(line, { x, y: currentY, size, font, color });
+      return currentY;
+    };
+
+    const drawTextWrappedCentered = (page: any, text: string, x: number, y: number, width: number, size: number, color: any) => {
+      const words = text.split(' ');
+      let line = '';
+      let currentY = y;
+      for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + ' ';
+        const testWidth = font.widthOfTextAtSize(testLine, size);
+        if (testWidth > width && n > 0) {
+          const lineW = font.widthOfTextAtSize(line, size);
+          page.drawText(line, { x: x + (width - lineW) / 2, y: currentY, size, font, color });
+          line = words[n] + ' ';
+          currentY -= (size + 4);
+        } else {
+          line = testLine;
+        }
+      }
+      const lineW = font.widthOfTextAtSize(line, size);
+      page.drawText(line, { x: x + (width - lineW) / 2, y: currentY, size, font, color });
+    };
+
+    const drawRadioOptions = (page: any, isSim: boolean, x: number, y: number) => {
+      page.drawCircle({
+        x: x + 6, y: y + 4,
+        radius: 5,
+        color: isSim ? rgb(34/255, 197/255, 94/255) : rgb(15/255, 23/255, 42/255),
+        borderColor: rgb(71/255, 85/255, 105/255),
+        borderWidth: 1
+      });
+      page.drawText("Sim", { x: x + 15, y, size: 8, font, color: rgb(255/255, 255/255, 255/255) });
+      
+      page.drawCircle({
+        x: x + 60, y: y + 4,
+        radius: 5,
+        color: !isSim ? rgb(239/255, 68/255, 68/255) : rgb(15/255, 23/255, 42/255),
+        borderColor: rgb(71/255, 85/255, 105/255),
+        borderWidth: 1
+      });
+      page.drawText("Nao", { x: x + 69, y, size: 8, font, color: rgb(255/255, 255/255, 255/255) });
+    };
+
+    // Pagina 1
+    const page1 = pdfDoc.addPage([595, 842]);
+    page1.drawRectangle({
+      x: 0, y: 0,
+      width: 595, height: 842,
+      color: rgb(15/255, 23/255, 42/255)
+    });
     
-    yPos -= 20;
-    drawLine('Questionario (COANA 188):', true, 14);
-    yPos -= 10;
-    drawLine(`1. API-Argos: ${q1.toUpperCase()}`);
-    drawLine(`2. RFB destinataria: ${q2.toUpperCase()}`);
-    drawLine(`3. Monitoramento portas: ${q3.toUpperCase()}`);
-    drawLine(`4. Baus: ${q4.toUpperCase()}`);
-    drawLine(`5. KML: ${q5.toUpperCase()}`);
-    drawLine(`6. Violacao aduana: ${q6.toUpperCase()}`);
+    // Logos
+    const targetLogo = path.join(process.cwd(), 'public', 'logo.png');
+    const targetOeaLogo = path.join(process.cwd(), 'public', 'logo-oea.png');
     
-    yPos -= 20;
-    drawLine(`Pontuacao: ${pontuacao} pontos`, true, 14);
+    if (fs.existsSync(targetLogo)) {
+      try {
+        const logoBytes = fs.readFileSync(targetLogo);
+        const logoImg = await pdfDoc.embedPng(logoBytes);
+        page1.drawImage(logoImg, { x: 180, y: 760, width: 80, height: 40 });
+      } catch (e) {}
+    }
+    page1.drawLine({
+      start: { x: 285, y: 760 },
+      end: { x: 285, y: 800 },
+      color: rgb(51/255, 65/255, 85/255),
+      thickness: 1
+    });
+    if (fs.existsSync(targetOeaLogo)) {
+      try {
+        const logoOeaBytes = fs.readFileSync(targetOeaLogo);
+        const logoOeaImg = await pdfDoc.embedPng(logoOeaBytes);
+        page1.drawImage(logoOeaImg, { x: 305, y: 762, width: 80, height: 36 });
+      } catch (e) {}
+    }
+    
+    // Titulo
+    const titleTextStr = "Homologacao de Transportadoras";
+    const titleW = fontBold.widthOfTextAtSize(titleTextStr, 18);
+    page1.drawText(titleTextStr, {
+      x: (595 - titleW) / 2,
+      y: 720,
+      size: 18,
+      font: fontBold,
+      color: rgb(255/255, 255/255, 255/255)
+    });
+    
+    // Subtitulo
+    const subTextStr = "Formulario de revalidacao de requisitos da Portaria COANA 188/2026 para manutencao do Transito Aduaneiro Simplificado (Programa OEA).";
+    drawTextWrappedCentered(page1, subTextStr, 50, 695, 495, 8, rgb(148/255, 163/255, 184/255));
+    
+    // Painel 1: Dados de Identificacao
+    page1.drawRectangle({
+      x: 40, y: 355,
+      width: 515, height: 310,
+      color: rgb(30/255, 41/255, 59/255),
+      borderColor: rgb(51/255, 65/255, 85/255),
+      borderWidth: 1
+    });
+    
+    page1.drawText("1. Dados de Identificacao", {
+      x: 55, y: 640,
+      size: 12,
+      font: fontBold,
+      color: rgb(255/255, 255/255, 255/255)
+    });
+    
+    page1.drawLine({
+      start: { x: 55, y: 632 },
+      end: { x: 540, y: 632 },
+      color: rgb(59/255, 130/255, 246/255),
+      thickness: 1.5
+    });
+    
+    drawInputBox(page1, "Nome da Transportadora (Razao Social) *", safe(razaoSocial), 55, 560, 235, 32);
+    drawInputBox(page1, "CNPJ *", safe(cnpj), 305, 560, 235, 32);
+    
+    drawInputBox(page1, "Nome do Responsavel pelo Preenchimento *", safe(nomeResponsavel), 55, 490, 235, 32);
+    drawInputBox(page1, "Cargo do Responsavel *", safe(cargo), 305, 490, 235, 32);
+    
+    drawInputBox(page1, "E-mail de Contato *", safe(email), 55, 420, 235, 32);
+    drawInputBox(page1, "Telefone/WhatsApp *", safe(telefone), 305, 420, 235, 32);
+    
+    // Painel 2: Requisitos COANA (Q1 e Q2)
+    page1.drawRectangle({
+      x: 40, y: 50,
+      width: 515, height: 280,
+      color: rgb(30/255, 41/255, 59/255),
+      borderColor: rgb(51/255, 65/255, 85/255),
+      borderWidth: 1
+    });
+    
+    page1.drawText("2. Requisitos da Portaria COANA 188/2026", {
+      x: 55, y: 305,
+      size: 12,
+      font: fontBold,
+      color: rgb(255/255, 255/255, 255/255)
+    });
+    
+    page1.drawLine({
+      start: { x: 55, y: 297 },
+      end: { x: 540, y: 297 },
+      color: rgb(59/255, 130/255, 246/255),
+      thickness: 1.5
+    });
+    
+    let yQ1 = 280;
+    yQ1 = drawTextWrapped(page1, "1. A sua transportadora possui contrato com empresa de monitoramento/rastreamento de veiculos que ja esteja integrada a API-Argos da Receita Federal? *", 55, yQ1 - 15, 480, 9, rgb(255/255, 255/255, 255/255));
+    drawRadioOptions(page1, q1 === 'sim', 55, yQ1 - 18);
+    
+    let yQ2 = yQ1 - 38;
+    yQ2 = drawTextWrapped(page1, "2. A sua transportadora realizou a configuracao sistemica para demonstrar que a RFB esta habilitada como destinataria dos dados de rastreamento no sistema? *", 55, yQ2 - 15, 480, 9, rgb(255/255, 255/255, 255/255));
+    drawRadioOptions(page1, q2 === 'sim', 55, yQ2 - 18);
+    
+    // Pagina 2
+    const page2 = pdfDoc.addPage([595, 842]);
+    page2.drawRectangle({
+      x: 0, y: 0,
+      width: 595, height: 842,
+      color: rgb(15/255, 23/255, 42/255)
+    });
+    
+    // Painel 3: Q3, Q4, Q5, Q6
+    page2.drawRectangle({
+      x: 40, y: 350,
+      width: 515, height: 440,
+      color: rgb(30/255, 41/255, 59/255),
+      borderColor: rgb(51/255, 65/255, 85/255),
+      borderWidth: 1
+    });
+    
+    let yQ3 = 770;
+    yQ3 = drawTextWrapped(page2, "3. O sistema de monitoramento de veiculos e cargas utilizado pela sua empresa contempla o monitoramento das portas das unidades de carga (baus)? *", 55, yQ3 - 15, 480, 9, rgb(255/255, 255/255, 255/255));
+    drawRadioOptions(page2, q3 === 'sim', 55, yQ3 - 18);
+    
+    let yQ4 = yQ3 - 38;
+    yQ4 = drawTextWrapped(page2, "4. A frota de veiculos utilizada nas operacoes de transito simplificado possui carrocerias exclusivamente fechadas do tipo Bau? *(O uso de Sider esta vedado como regra)*", 55, yQ4 - 15, 480, 9, rgb(255/255, 255/255, 255/255));
+    drawRadioOptions(page2, q4 === 'sim', 55, yQ4 - 18);
+    
+    let yQ5 = yQ4 - 38;
+    yQ5 = drawTextWrapped(page2, "5. A sua transportadora possui capacidade e procedimento definido para gerar e fornecer a Audaz as coordenadas geograficas de cada rota em formato de arquivo KML? *", 55, yQ5 - 15, 480, 9, rgb(255/255, 255/255, 255/255));
+    drawRadioOptions(page2, q5 === 'sim', 55, yQ5 - 18);
+    
+    let yQ6 = yQ5 - 38;
+    yQ6 = drawTextWrapped(page2, "6. A transportadora possui procedimento formal para comunicacao imediata a unidade aduaneira de destino antes da chegada do veiculo, em caso de: abertura de portas no percurso, dano no lacre ou interrupcao de envio do sinal de rastreamento? *", 55, yQ6 - 15, 480, 9, rgb(255/255, 255/255, 255/255));
+    drawRadioOptions(page2, q6 === 'sim', 55, yQ6 - 18);
+    
+    // Painel 4: Termo
+    page2.drawRectangle({
+      x: 40, y: 180,
+      width: 515, height: 150,
+      color: rgb(30/255, 41/255, 59/255),
+      borderColor: rgb(51/255, 65/255, 85/255),
+      borderWidth: 1
+    });
+    
+    page2.drawRectangle({
+      x: 55, y: 290,
+      width: 14, height: 14,
+      color: termoAceito ? rgb(59/255, 130/255, 246/255) : rgb(15/255, 23/255, 42/255),
+      borderColor: rgb(71/255, 85/255, 105/255),
+      borderWidth: 1
+    });
+    if (termoAceito) {
+      page2.drawText("X", { x: 59, y: 293, size: 9, font: fontBold, color: rgb(255/255, 255/255, 255/255) });
+    }
+    
+    const termoTextStr = "Declaro sob as penas da lei que as informacoes prestadas neste formulario e os documentos anexados sao verdadeiros. Tenho ciencia dos requisitos da Portaria COANA 188/2026 e assumo a responsabilidade pelas devidas atualizacoes.";
+    drawTextWrapped(page2, termoTextStr, 78, 303, 455, 8.5, rgb(255/255, 255/255, 255/255));
+    
+    // Panel 5: Score Badge
+    const badgeColor = pontuacao >= 50 ? rgb(22/255, 101/255, 52/255) : pontuacao >= 30 ? rgb(146/255, 64/255, 14/255) : rgb(153/255, 27/255, 27/255);
+    const badgeBg = pontuacao >= 50 ? rgb(220/255, 252/255, 231/255) : pontuacao >= 30 ? rgb(254/255, 243/255, 199/255) : rgb(254/255, 226/255, 226/255);
+    
+    page2.drawRectangle({
+      x: 40, y: 70,
+      width: 515, height: 90,
+      color: badgeBg,
+      borderColor: badgeColor,
+      borderWidth: 1
+    });
+    
+    page2.drawText(`Status de Homologacao: Pendente`, {
+      x: 55, y: 130,
+      size: 12,
+      font: fontBold,
+      color: badgeColor
+    });
+    
+    page2.drawText(`Pontuacao Total: ${pontuacao} / 60 pontos`, {
+      x: 55, y: 105,
+      size: 11,
+      font: fontBold,
+      color: badgeColor
+    });
+    
+    page2.drawText(`Data de Preenchimento: ${formatDate(new Date())}`, {
+      x: 55, y: 85,
+      size: 9,
+      font,
+      color: badgeColor
+    });
 
     const pdfBytes = await pdfDoc.save();
     const pdfBase64 = Buffer.from(pdfBytes).toString('base64');
 
     attachments.push({
       "@odata.type": "#microsoft.graph.fileAttachment",
-      name: `Resumo_Homologacao_${cnpj.replace(/[^0-9]/g, '')}.pdf`,
+      name: `Ficha_Cadastro_${razaoSocial.replace(/[^a-zA-Z0-9-_]/g, '_')}_${cnpj.replace(/[^0-9]/g, '')}.pdf`,
       contentType: "application/pdf",
       contentBytes: pdfBase64
     });
