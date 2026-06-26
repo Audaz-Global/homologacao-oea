@@ -370,8 +370,27 @@ export async function POST(request: Request) {
     // --- FIM DA GERAÇÃO DO PDF ---
 
 
-    const novaTransportadora = await prisma.transportadora.create({
-      data: {
+    const novaTransportadora = await prisma.transportadora.upsert({
+      where: { cnpj },
+      update: {
+        razaoSocial,
+        nomeResponsavel,
+        cargo,
+        email,
+        telefone,
+        q1_apiArgos: q1,
+        evidenciaQ1,
+        q2_rfbDestino: q2,
+        evidenciaQ2,
+        q3_monitorPortas: q3,
+        q4_baus: q4,
+        q5_kml: q5,
+        q6_violacao: q6,
+        termoAceito,
+        pontuacao,
+        statusHomologacao: 'Pendente'
+      },
+      create: {
         razaoSocial,
         cnpj,
         nomeResponsavel,
