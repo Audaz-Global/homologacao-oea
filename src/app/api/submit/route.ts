@@ -141,7 +141,7 @@ export async function POST(request: Request) {
     const drawRadioOptions = (page: any, isSim: boolean, x: number, y: number) => {
       page.drawCircle({
         x: x + 6, y: y + 4,
-        radius: 5,
+        size: 5,
         color: isSim ? rgb(34/255, 197/255, 94/255) : rgb(15/255, 23/255, 42/255),
         borderColor: rgb(71/255, 85/255, 105/255),
         borderWidth: 1
@@ -150,7 +150,7 @@ export async function POST(request: Request) {
       
       page.drawCircle({
         x: x + 60, y: y + 4,
-        radius: 5,
+        size: 5,
         color: !isSim ? rgb(239/255, 68/255, 68/255) : rgb(15/255, 23/255, 42/255),
         borderColor: rgb(71/255, 85/255, 105/255),
         borderWidth: 1
@@ -411,14 +411,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // Atualiza o arquivo markdown resumo_transportadoras.md na raiz do workspace
-    exec('node ../update-resumo.js', (err) => {
-      if (err) {
-        console.error('Erro ao atualizar o arquivo de resumo das transportadoras:', err);
-      } else {
-        console.log('Arquivo resumo_transportadoras.md atualizado com sucesso.');
-      }
-    });
+    // Atualização de markdown local removida pois não faz sentido em ambiente de produção (Railway).
 
     // Enviar notificação por e-mail via MS Graph API
     try {
