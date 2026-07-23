@@ -72,7 +72,6 @@ export default async function AdminDashboard() {
                   <th scope="col" className="px-6 py-4 text-center">Status</th>
                   <th scope="col" className="px-6 py-4 text-center">Respostas</th>
                   <th scope="col" className="px-6 py-4 text-center">Evidências</th>
-                  <th scope="col" className="px-6 py-4 text-center">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -84,6 +83,29 @@ export default async function AdminDashboard() {
                     <td className="px-6 py-4 font-medium text-white">
                       {t.razaoSocial}
                       <div className="text-xs text-slate-500 font-normal mt-1">{t.email} • {t.telefone}</div>
+
+                      <details className="group mt-3 font-normal">
+                        <summary className="w-fit cursor-pointer list-none rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-300 transition-colors hover:bg-red-500/20">
+                          🗑️ Excluir
+                        </summary>
+
+                        <div className="mt-2 rounded-xl border border-red-500/20 bg-slate-900/90 p-3 text-left shadow-xl">
+                          <p className="text-xs font-semibold text-white">
+                            Excluir {t.razaoSocial}?
+                          </p>
+                          <p className="mt-1 text-xs leading-5 text-slate-400">
+                            Esta ação remove permanentemente o cadastro, as respostas e as evidências.
+                          </p>
+                          <form method="post" action={`/admin/transportadoras/${t.id}/delete`} className="mt-3">
+                            <button
+                              type="submit"
+                              className="w-full rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-red-500"
+                            >
+                              Confirmar exclusão
+                            </button>
+                          </form>
+                        </div>
+                      </details>
                     </td>
                     <td className="px-6 py-4">{t.cnpj}</td>
                     
@@ -163,37 +185,12 @@ export default async function AdminDashboard() {
                         )}
                       </div>
                     </td>
-
-                    <td className="px-6 py-4 align-top">
-                      <details className="group min-w-52">
-                        <summary className="mx-auto w-fit cursor-pointer list-none rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300 transition-colors hover:bg-red-500/20">
-                          Excluir
-                        </summary>
-
-                        <div className="mt-3 rounded-xl border border-red-500/20 bg-slate-900/90 p-3 text-left shadow-xl">
-                          <p className="text-xs font-semibold text-white">
-                            Excluir {t.razaoSocial}?
-                          </p>
-                          <p className="mt-1 text-xs leading-5 text-slate-400">
-                            Esta ação remove permanentemente o cadastro, as respostas e as evidências.
-                          </p>
-                          <form method="post" action={`/admin/transportadoras/${t.id}/delete`} className="mt-3">
-                            <button
-                              type="submit"
-                              className="w-full rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-red-500"
-                            >
-                              Confirmar exclusão
-                            </button>
-                          </form>
-                        </div>
-                      </details>
-                    </td>
                   </tr>
                 ))}
 
                 {transportadoras.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
+                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
                       Nenhuma transportadora respondeu ao questionário ainda.
                     </td>
                   </tr>
