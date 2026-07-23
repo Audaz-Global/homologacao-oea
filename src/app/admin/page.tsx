@@ -1,7 +1,28 @@
 import { prisma } from '@/lib/prisma';
-import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
+
+function RespostaBadge({ resposta }: { resposta: string }) {
+  const respostaNormalizada = resposta.trim().toLowerCase();
+  const respostaPositiva = respostaNormalizada === 'sim';
+  const respostaExibida = respostaPositiva
+    ? 'Sim'
+    : respostaNormalizada === 'nao' || respostaNormalizada === 'não'
+      ? 'Não'
+      : resposta;
+
+  return (
+    <span
+      className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-bold uppercase ${
+        respostaPositiva
+          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+          : 'border-red-500/30 bg-red-500/10 text-red-400'
+      }`}
+    >
+      {respostaExibida}
+    </span>
+  );
+}
 
 export default async function AdminDashboard() {
   const transportadoras = await prisma.transportadora.findMany({
@@ -14,6 +35,12 @@ export default async function AdminDashboard() {
       pontuacao: true,
       statusHomologacao: true,
       createdAt: true,
+      q1_apiArgos: true,
+      q2_rfbDestino: true,
+      q3_monitorPortas: true,
+      q4_baus: true,
+      q5_kml: true,
+      q6_violacao: true,
       evidenciaQ1: true, // we fetch this just to check if it's not null to render the download button
       evidenciaQ2: true, // we fetch this just to check if it's not null to render the download button
     },
@@ -43,6 +70,7 @@ export default async function AdminDashboard() {
                   <th scope="col" className="px-6 py-4">CNPJ</th>
                   <th scope="col" className="px-6 py-4 text-center">Nota (0-60)</th>
                   <th scope="col" className="px-6 py-4 text-center">Status</th>
+                  <th scope="col" className="px-6 py-4 text-center">Respostas</th>
                   <th scope="col" className="px-6 py-4 text-center">Evidências</th>
                 </tr>
               </thead>
@@ -80,6 +108,42 @@ export default async function AdminDashboard() {
                       </span>
                     </td>
 
+                    <td className="px-6 py-4 align-top">
+                      <details className="group min-w-72">
+                        <summary className="mx-auto w-fit cursor-pointer list-none rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-indigo-300 transition-colors hover:bg-indigo-500/20">
+                          <span className="group-open:hidden">Ver respostas</span>
+                          <span className="hidden group-open:inline">Ocultar respostas</span>
+                        </summary>
+
+                        <div className="mt-3 space-y-2 rounded-xl border border-white/10 bg-slate-900/80 p-3 shadow-xl">
+                          <div className="flex items-center justify-between gap-4 border-b border-white/5 pb-2">
+                            <span className="text-xs leading-5 text-slate-300">1. Integração com a API-Argos da RFB</span>
+                            <RespostaBadge resposta={t.q1_apiArgos} />
+                          </div>
+                          <div className="flex items-center justify-between gap-4 border-b border-white/5 pb-2">
+                            <span className="text-xs leading-5 text-slate-300">2. RFB habilitada como destinatária dos dados</span>
+                            <RespostaBadge resposta={t.q2_rfbDestino} />
+                          </div>
+                          <div className="flex items-center justify-between gap-4 border-b border-white/5 pb-2">
+                            <span className="text-xs leading-5 text-slate-300">3. Monitoramento de abertura de portas</span>
+                            <RespostaBadge resposta={t.q3_monitorPortas} />
+                          </div>
+                          <div className="flex items-center justify-between gap-4 border-b border-white/5 pb-2">
+                            <span className="text-xs leading-5 text-slate-300">4. Carrocerias fechadas do tipo baú</span>
+                            <RespostaBadge resposta={t.q4_baus} />
+                          </div>
+                          <div className="flex items-center justify-between gap-4 border-b border-white/5 pb-2">
+                            <span className="text-xs leading-5 text-slate-300">5. Capacidade de fornecer rotas em KML</span>
+                            <RespostaBadge resposta={t.q5_kml} />
+                          </div>
+                          <div className="flex items-center justify-between gap-4">
+                            <span className="text-xs leading-5 text-slate-300">6. Comunicação de violações à aduana</span>
+                            <RespostaBadge resposta={t.q6_violacao} />
+                          </div>
+                        </div>
+                      </details>
+                    </td>
+
                     <td className="px-6 py-4">
                       <div className="flex justify-center gap-2">
                         {t.evidenciaQ1 ? (
@@ -103,7 +167,7 @@ export default async function AdminDashboard() {
 
                 {transportadoras.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
                       Nenhuma transportadora respondeu ao questionário ainda.
                     </td>
                   </tr>
