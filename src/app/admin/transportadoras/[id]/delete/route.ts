@@ -7,8 +7,26 @@ export async function POST(
 ) {
   const requestUrl = new URL(request.url);
   const origin = request.headers.get('origin');
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  const host = (forwardedHost || request.headers.get('host'))
+    ?.split(',')[0]
+    .trim();
+  const fetchSite = request.headers.get('sec-fetch-site');
 
-  if (!origin || origin !== requestUrl.origin) {
+  let originHost: string | null = null;
+
+  try {
+    originHost = origin ? new URL(origin).host : null;
+  } catch {
+    originHost = null;
+  }
+
+  if (
+    !originHost ||
+    !host ||
+    originHost !== host ||
+    (fetchSite && fetchSite !== 'same-origin')
+  ) {
     return new NextResponse('Origem da solicitação inválida.', { status: 403 });
   }
 
