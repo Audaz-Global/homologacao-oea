@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Portal Homologação OEA
 
-## Getting Started
+> **Módulo:** Compliance e Certificação Aduaneira.
+> **Objetivo:** Portal web para parceiros e fornecedores preencherem o questionário de qualificação do programa OEA (Operador Econômico Autorizado), realizando o upload seguro de evidências comprobatórias e automatizando a geração de relatórios em PDF.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Arquitetura e Fluxo de Dados
+
+A aplicação foi construída como um portal Full-Stack (Frontend e Backend na mesma base de código) utilizando as rotas de API do Next.js. 
+
+```mermaid
+flowchart TD
+    subgraph Frontend_Web [Navegador do Usuário]
+        Form[Formulário de Qualificação\nReact + Tailwind]
+        Upload[Upload de Evidências\nArquivos/PDFs]
+    end
+
+    subgraph Backend_NextJS [Servidor Next.js API]
+        Controller[Rota API /submit]
+        PDF[Gerador Dinâmico\npdf-lib]
+        Mailer[Motor de E-mail\nNodemailer / MS Graph]
+    end
+    
+    subgraph Banco_de_Dados
+        DB[(Prisma ORM\nPostgreSQL)]
+    end
+
+    Form -->|Respostas Q1-Q6| Controller
+    Upload -->|Anexos Base64| Controller
+    Controller -->|Calcula Pontuação| DB
+    Controller -->|Dados Consolidados| PDF
+    PDF -->|Relatório OEA Gerado| Mailer
+    Mailer -->|Dispara E-mail com Anexos| Setor_Compliance((Time Audaz / OEA))
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Tecnologias Utilizadas
+* **Framework:** Next.js (App Router) v16, React 19.
+* **Estilização:** TailwindCSS v4.
+* **Persistência de Dados:** Prisma ORM.
+* **Geração de Documentos:** `pdf-lib` (para montar o termo de adesão e resultados em PDF de forma programática).
+* **Notificações:** `nodemailer` e integrações preparadas para o ecossistema Microsoft Graph.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Principais Funcionalidades
 
-## Learn More
+1. **Questionário Dinâmico:** Formulário inteligente que coleta Razão Social, CNPJ e cruza com perguntas técnicas (ex: "Possui API Argos?"). Cada resposta positiva soma pontos para o critério OEA.
+2. **Coleta de Evidências:** Permite o upload de arquivos anexos obrigatórios atrelados a cada pergunta técnica.
+3. **Compilação e Assinatura Automatizada:** Ao enviar, o backend gera um Dossiê em PDF com todas as respostas preenchidas e despacha automaticamente para a equipe interna responsável pela triagem de compliance.
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Instalação e Execução Local
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+# 1. Instale as dependências (Requer Node.js >= 20.19)
+npm install
 
-## Deploy on Vercel
+# 2. Configure as Variáveis de Ambiente no .env
+# DATABASE_URL=postgresql://user:pass@host/db
+# SMTP_USER, SMTP_PASS, etc...
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# 3. Sincronize o Prisma com o Banco de Dados
+# O comando abaixo empurrará o Schema pro banco
+npx prisma db push --accept-data-loss
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# 4. Inicie o Servidor em Modo de Desenvolvimento
+npm run dev
+```
+O portal estará disponível em `http://localhost:3000`.
